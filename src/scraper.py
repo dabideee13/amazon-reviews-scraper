@@ -1,52 +1,49 @@
+from typing import Optional
+from pathlib import Path
 import time
 import random
-from typing import Optional, List, Dict
 from itertools import chain
-from pathlib import Path
 
 from selectorlib import Extractor
 import requests
 import pandas as pd
 
+from tools import read_header
+
 extractor = Extractor.from_yaml_file('selectors.yml')
 
+HEADERS = read_header()
 
-def scrape(url: str):
+
+def _download_page(url: str, headers: dict[str, str] = HEADERS):
+
+    # Download the page using requests
+    print(f"Downloading {url}")
+    request = requests.get(url, headers=headers)
+
+    # Simple check to check if page was blocked (Usually 503)
+    if request.status_code > 500:
+        if "To discuss automated access to Amazon data please contact" in request.text:
+            print("Page %s was blocked by Amazon. Please try using better proxies\n" % url)
+        else:
+            print("Page %s must have been blocked by Amazon as the status code was %d" % (url, request.status_code))
+        return None
+
+    return request
+
+
+def scrape(url: str, headers: dict[str, str] = HEADERS) -> dict[str, str]:
     """
     Source: https://www.scrapehero.com/how-to-scrape-amazon-product-reviews/
     """
 
-    headers = {
-        'authority': 'www.amazon.com',
-        'pragma': 'no-cache',
-        'cache-control': 'no-cache',
-        'dnt': '1',
-        'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.64 Safari/537.36',
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'sec-fetch-site': 'none',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-dest': 'document',
-        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-    }
-
-    # Download the page using requests
-    print(f"Downloading {url}")
-    r = requests.get(url, headers=headers)
-
-    # Simple check to check if page was blocked (Usually 503)
-    if r.status_code > 500:
-        if "To discuss automated access to Amazon data please contact" in r.text:
-            print("Page %s was blocked by Amazon. Please try using better proxies\n"%url)
-        else:
-            print("Page %s must have been blocked by Amazon as the status code was %d"%(url,r.status_code))
-        return None
-
-    # Pass the HTML of the page and create
-    return extractor.extract(r.text)
+    request = _download_page(url, headers=headers)
+    return extractor.extract(request.text)
 
 
-def crawl(url: str, n_pages: Optional[int] = None) -> List[Dict[str, str]]:
+def crawl(url: str, n_pages: Optional[int] = None) -> list[dict[str, str]]:
+
+    scrape(url)
 
     if n_pages is None:
         n_pages = float('inf')
@@ -72,7 +69,7 @@ def crawl(url: str, n_pages: Optional[int] = None) -> List[Dict[str, str]]:
     return all_data
 
 
-def format_reviews(data: List[Dict[str, str]]) -> pd.DataFrame:
+def format_reviews(data: list[dict[str, str]]) -> pd.DataFrame:
     all_reviews = [review['reviews'] for review in data]
     return pd.DataFrame(list(chain(*all_reviews)))
 
