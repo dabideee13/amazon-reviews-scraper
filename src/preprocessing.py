@@ -1,21 +1,44 @@
 from pathlib import Path
+from typing import Union
+import json
 
 import pandas as pd
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
+from tools import read_json
+
 vds = SentimentIntensityAnalyzer()
 
 
-def label_sentiment(text: str) -> int:
+def format_rating(rating: str) -> Union[float, None]:
+    try:
+        rate = rating.split()[0]
+        return eval(rate)
+    except (AttributeError, IndexError):
+        pass
+
+
+def label_sentiment(text: str, mode: str = 'string') -> int:
+    """[summary]
+
+    Args:
+        text (str): [description]
+        mode (str, optional): Possible choices could be `string` or `integer`. Defaults to 'string'.
+
+    Returns:
+        int: [description]
+    """
+    labels = read_json(Path.cwd(), filename='labels.json')[mode]
+
     sentiment_stats = vds.polarity_scores(text)
     sentiment = sentiment_stats['compound']
 
     if sentiment >= 0.05:
-        return 1
+        return labels['positive']
     elif (sentiment > -0.05) and (sentiment < 0.05):
-        return 0
+        return labels['neutral']
     else:
-        return -1
+        return labels['negative']
 
 
 if __name__ == "__main__":

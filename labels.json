@@ -1,0 +1,12 @@
+{
+    "string": {
+        "positive": "positive",
+        "neutral": "neutral",
+        "negative": "negative"
+    },
+    "integer": {
+        "positive": 1,
+        "neutral": 0,
+        "negative": -1
+    }
+}
